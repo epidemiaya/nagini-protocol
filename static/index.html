@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nagini Protocol</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #0a0e14;
+  --surface:  #111822;
+  --surface2: #1a2332;
+  --border:   #253040;
+  --green:    #3dff9a;
+  --green-dim:#1a7a4a;
+  --red:      #ff4466;
+  --yellow:   #ffd040;
+  --blue:     #40b4ff;
+  --white:    #f0f4f8;
+  --gray:     #8899aa;
+  --dim:      #445566;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'Inter', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--white); font-family: var(--sans); font-size: 15px; min-height: 100vh; }
+
+header {
+  background: var(--surface); border-bottom: 1px solid var(--border);
+  padding: 0 28px; display: flex; align-items: center; justify-content: space-between;
+  height: 56px; position: sticky; top: 0; z-index: 100;
+}
+.logo { font-family: var(--mono); font-size: 16px; color: var(--green); letter-spacing: 2px; }
+.logo em { color: var(--dim); font-style: normal; }
+.api-badge { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--gray); font-family: var(--mono); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+nav { background: var(--surface); border-bottom: 1px solid var(--border); display: flex; padding: 0 28px; }
+.tab { padding: 14px 20px; font-size: 13px; font-weight: 600; color: var(--gray); border: none; background: none; border-bottom: 2px solid transparent; cursor: pointer; transition: color .15s; letter-spacing: .5px; }
+.tab:hover { color: var(--white); }
+.tab.active { color: var(--green); border-bottom-color: var(--green); }
+
+main { max-width: 760px; margin: 0 auto; padding: 32px 24px; }
+.panel { display: none; }
+.panel.active { display: flex; flex-direction: column; gap: 20px; animation: fadeUp .2s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:none} }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; }
+.card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+.card-title { font-size: 13px; font-weight: 700; color: var(--white); letter-spacing: 1px; text-transform: uppercase; }
+.card-badge { font-size: 10px; font-family: var(--mono); padding: 2px 8px; border-radius: 4px; font-weight: 600; letter-spacing: .5px; }
+.badge-opt  { background: rgba(255,208,64,.12); color: var(--yellow); border: 1px solid rgba(255,208,64,.25); }
+.badge-warn { background: rgba(255,68,102,.12); color: var(--red); border: 1px solid rgba(255,68,102,.25); }
+.badge-ok   { background: rgba(61,255,154,.12); color: var(--green); border: 1px solid rgba(61,255,154,.25); }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field + .field { margin-top: 14px; }
+label { font-size: 12px; font-weight: 600; color: var(--gray); letter-spacing: .8px; text-transform: uppercase; }
+input, select, textarea {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+  color: var(--white); font-family: var(--mono); font-size: 14px; padding: 10px 14px;
+  outline: none; transition: border-color .15s, box-shadow .15s; width: 100%;
+}
+input::placeholder { color: var(--dim); }
+input:focus, select:focus, textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(61,255,154,.08); }
+select { cursor: pointer; }
+select option { background: var(--surface2); color: var(--white); }
+textarea { resize: vertical; min-height: 72px; }
+input[type=range] { padding: 4px 0; border: none; background: none; box-shadow: none; accent-color: var(--green); cursor: pointer; }
+input[type=range]:focus { box-shadow: none; }
+
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.hint { font-size: 12px; color: var(--gray); line-height: 1.5; margin-top: 4px; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 22px; border-radius: 6px; font-family: var(--sans); font-size: 13px; font-weight: 600; letter-spacing: .5px; cursor: pointer; border: none; transition: all .15s; }
+.btn-green  { background: var(--green); color: #000; }
+.btn-green:hover { background: #5fffa8; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--white); }
+.btn-outline:hover { border-color: var(--green); color: var(--green); background: rgba(61,255,154,.05); }
+.btn-red    { background: rgba(255,68,102,.15); border: 1px solid rgba(255,68,102,.4); color: var(--red); }
+.btn-red:hover { background: rgba(255,68,102,.25); }
+.btn-full   { width: 100%; }
+.btn-sm     { padding: 7px 14px; font-size: 12px; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.notice { border-radius: 6px; padding: 12px 16px; font-size: 13px; line-height: 1.6; display: flex; gap: 10px; align-items: flex-start; }
+.notice-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.notice-yellow { background: rgba(255,208,64,.08); border: 1px solid rgba(255,208,64,.2); color: #ffe080; }
+.notice-red    { background: rgba(255,68,102,.08); border: 1px solid rgba(255,68,102,.2); color: #ff8899; }
+.notice-green  { background: rgba(61,255,154,.08); border: 1px solid rgba(61,255,154,.2); color: #80ffcc; }
+
+.loc-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 16px; margin-bottom: 10px; position: relative; }
+.loc-card.is-canary { border-color: rgba(255,208,64,.35); background: rgba(255,208,64,.03); }
+.loc-label { font-size: 11px; font-weight: 700; color: var(--green); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.loc-canary-tag { color: var(--yellow); }
+.loc-remove { position: absolute; top: 12px; right: 12px; background: none; border: none; color: var(--dim); font-size: 18px; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 4px; transition: color .15s, background .15s; }
+.loc-remove:hover { color: var(--red); background: rgba(255,68,102,.1); }
+
+.threshold-info { background: var(--surface2); border-radius: 6px; padding: 10px 14px; font-size: 13px; color: var(--gray); border: 1px solid var(--border); margin-top: 10px; }
+.threshold-info.ok  { border-color: rgba(61,255,154,.2); color: var(--green); background: rgba(61,255,154,.05); }
+.threshold-info.bad { border-color: rgba(255,208,64,.2); color: var(--yellow); background: rgba(255,208,64,.05); }
+
+.terminal { background: #050a0e; border: 1px solid var(--border); border-radius: 6px; padding: 18px 20px; font-family: var(--mono); font-size: 13px; line-height: 1.9; white-space: pre-wrap; word-break: break-all; min-height: 80px; }
+.t-ok   { color: var(--green); }
+.t-err  { color: var(--red); }
+.t-warn { color: var(--yellow); }
+.t-dim  { color: var(--gray); }
+.t-val  { color: var(--white); background: rgba(255,255,255,.07); padding: 1px 6px; border-radius: 3px; }
+
+.shards-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.shard-chip { width: 72px; height: 72px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; display: flex; flex-direction: column; align-items: center; justify-content: center; cursor: pointer; transition: all .15s; font-family: var(--mono); }
+.shard-chip:hover:not(.done) { border-color: var(--green); background: rgba(61,255,154,.05); }
+.shard-chip.active { border-color: var(--blue); background: rgba(64,180,255,.05); }
+.shard-chip.done { border-color: var(--green); background: rgba(61,255,154,.06); cursor: default; }
+.chip-num { font-size: 22px; font-weight: 700; color: var(--white); line-height: 1; }
+.chip-lbl { font-size: 9px; color: var(--gray); letter-spacing: 1px; margin-top: 4px; }
+.shard-chip.done .chip-num, .shard-chip.done .chip-lbl { color: var(--green); }
+
+.progress { height: 4px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--green-dim), var(--green)); transition: width .4s ease; border-radius: 4px; }
+.progress-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--gray); margin-top: 6px; font-family: var(--mono); }
+
+.secret-reveal { background: #020a06; border: 1px solid var(--green); border-radius: 8px; padding: 20px; font-family: var(--mono); font-size: 13px; color: var(--green); line-height: 2; word-break: break-all; box-shadow: 0 0 24px rgba(61,255,154,.08); }
+
+.dms-status { background: var(--surface2); border-radius: 6px; padding: 14px 16px; margin-bottom: 14px; font-family: var(--mono); font-size: 13px; line-height: 2; border: 1px solid var(--border); color: var(--gray); }
+
+.sos-trigger-btn { width: 100%; padding: 20px; background: rgba(255,68,102,.08); border: 2px solid var(--red); border-radius: 8px; color: var(--red); font-family: var(--sans); font-size: 16px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: all .2s; }
+.sos-trigger-btn:hover { background: rgba(255,68,102,.18); box-shadow: 0 0 32px rgba(255,68,102,.2); }
+
+.pin-ok  { color: var(--green); font-family: var(--mono); font-size: 13px; padding: 10px 0; }
+.pin-bad { color: var(--red);   font-family: var(--mono); font-size: 13px; padding: 10px 0; }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.spin { display: inline-block; width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.2); border-top-color: var(--green); border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+hr.divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">NAGINI<em>//</em>PROTOCOL</div>
+  <div class="api-badge">
+    <div class="dot" id="status-dot"></div>
+    <span id="status-text">Connecting...</span>
+    <span id="bundle-count" style="color:var(--white)"></span>
+  </div>
+</header>
+
+<nav>
+  <button class="tab active" onclick="show('setup',this)">Setup</button>
+  <button class="tab" onclick="show('recover',this)">Recover</button>
+  <button class="tab" onclick="show('sos-config',this)">SOS Config</button>
+  <button class="tab" onclick="show('sos-trigger',this)">SOS Trigger</button>
+</nav>
+
+<main>
+
+<!-- SETUP -->
+<div id="panel-setup" class="panel active">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Secret</div></div>
+    <div class="field">
+      <label>Type</label>
+      <select id="secret-type" onchange="toggleSecret()">
+        <option value="passphrase">Passphrase (text)</option>
+        <option value="hex">Raw hex</option>
+      </select>
+    </div>
+    <div class="field" id="f-passphrase" style="margin-top:14px">
+      <label>Your secret passphrase</label>
+      <input type="password" id="s-pass" placeholder="Enter passphrase...">
+    </div>
+    <div class="field" id="f-hex" style="display:none;margin-top:14px">
+      <label>Hex secret</label>
+      <input type="text" id="s-hex" placeholder="aabbccdd...">
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><div class="card-title">Locations &amp; Threshold</div></div>
+    <div class="row2">
+      <div class="field"><label>Number of shards (N)</label><input type="number" id="n-shards" value="4" min="2" max="7" onchange="syncLocations()"></div>
+      <div class="field"><label>Recovery threshold (K)</label><input type="number" id="k-thresh" value="3" min="2" max="6" onchange="updateHint()"></div>
+    </div>
+    <div class="threshold-info ok" id="thresh-hint" style="margin-top:12px"></div>
+    <hr class="divider">
+    <div id="locs"></div>
+    <button class="btn btn-outline btn-sm" onclick="addLoc()" style="margin-top:6px">+ Add location</button>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">Canary shard</div>
+      <span class="card-badge badge-opt">optional</span>
+    </div>
+    <div class="notice notice-yellow" style="margin-bottom:16px">
+      <span class="notice-icon">&#9889;</span>
+      <span>If attacker visits canary location, they get a fake secret. An alert fires silently.</span>
+    </div>
+    <div class="field">
+      <label>Canary protection</label>
+      <select id="canary-on" onchange="toggleCanary()"><option value="no">Disabled</option><option value="yes">Enabled</option></select>
+    </div>
+    <div id="canary-fields" style="display:none">
+      <div class="row2" style="margin-top:14px">
+        <div class="field"><label>Canary shard index</label><select id="canary-idx"></select></div>
+        <div class="field"><label>Canary passphrase</label><input type="password" id="canary-pass" placeholder="Separate passphrase"></div>
+      </div>
+      <div class="row2" style="margin-top:14px">
+        <div class="field"><label>Telegram bot token</label><input type="text" id="c-tg-token" placeholder="123456:AAF..."></div>
+        <div class="field"><label>Telegram chat ID</label><input type="text" id="c-tg-chat" placeholder="-100123456"></div>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn btn-green btn-full" onclick="doSetup()" id="setup-btn">Generate shards</button>
+
+  <div class="card" id="setup-result" style="display:none">
+    <div class="card-header"><div class="card-title">Result</div></div>
+    <div class="terminal" id="setup-out"></div>
+  </div>
+</div>
+
+<!-- RECOVER -->
+<div id="panel-recover" class="panel">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Load bundle</div></div>
+    <div class="field"><label>Public ID</label><input type="text" id="r-pid" placeholder="dee1c68b5bafbea3db0529d6939f1afe"></div>
+    <div class="field" style="margin-top:14px"><label>Canary passphrase (if configured)</label><input type="password" id="r-cpass" placeholder="Leave empty if no canary"></div>
+    <button class="btn btn-green" style="margin-top:16px" onclick="loadBundle()">Load bundle</button>
+  </div>
+  <div id="recover-body" style="display:none">
+    <div class="card">
+      <div class="card-header"><div class="card-title">Collect shards</div></div>
+      <div class="progress"><div class="progress-fill" id="prog-fill" style="width:0%"></div></div>
+      <div class="progress-label">
+        <span>Collected: <span id="prog-done" style="color:var(--green)">0</span> / <span id="prog-total">?</span></span>
+        <span id="prog-msg" style="color:var(--gray)">visit locations</span>
+      </div>
+      <div class="shards-grid" id="shards-grid"></div>
+    </div>
+    <div class="card" id="shard-input-card">
+      <div class="card-header"><div class="card-title">Enter GPS &mdash; Shard <span id="active-shard">#?</span></div></div>
+      <div class="row2">
+        <div class="field"><label>Latitude</label><input type="number" id="r-lat" step="0.0001" placeholder="50.4501"></div>
+        <div class="field"><label>Longitude</label><input type="number" id="r-lon" step="0.0001" placeholder="30.5234"></div>
+      </div>
+      <button class="btn btn-outline" style="margin-top:14px" onclick="submitShard()" id="decrypt-btn">Decrypt shard</button>
+    </div>
+    <button class="btn btn-green btn-full" id="reconstruct-btn" onclick="reconstruct()" style="display:none">Reconstruct secret &rarr;</button>
+    <div class="card" id="secret-card" style="display:none">
+      <div class="card-header"><div class="card-title">Recovered secret</div></div>
+      <div class="notice notice-yellow" style="margin-bottom:14px">
+        <span class="notice-icon">&#9888;</span>
+        <span>Copy now. Not stored anywhere.</span>
+      </div>
+      <div class="secret-reveal" id="secret-out"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SOS CONFIG -->
+<div id="panel-sos-config" class="panel">
+  <div class="notice notice-yellow">
+    <span class="notice-icon">&#8505;</span>
+    <span>SOS config is encrypted and stored locally. Works independently of geographic shards.</span>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">Profile</div></div>
+    <div class="row2">
+      <div class="field"><label>Profile ID</label><input type="text" id="sos-pid" placeholder="myprofile"></div>
+      <div class="field"><label>Your name</label><input type="text" id="sos-owner" placeholder="Stas"></div>
+    </div>
+    <div class="field" style="margin-top:14px"><label>Config passphrase</label><input type="password" id="sos-pass" placeholder="Encrypts your SOS config"></div>
+    <div class="field" style="margin-top:14px">
+      <label>LAC wallet address <span style="color:var(--dim);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+      <input type="text" id="sos-lac-addr" placeholder="lac1abc...xyz" style="font-family:var(--mono)">
+      <p class="hint">Included in SOS alerts so trusted contacts can monitor your wallet.</p>
+    </div>
+    <div class="field" style="margin-top:14px"><label>Emergency message</label><textarea id="sos-msg" placeholder="I have been kidnapped. Last known location: ..."></textarea></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">Duress PIN</div></div>
+    <div class="notice notice-red" style="margin-bottom:16px">
+      <span class="notice-icon">&#128932;</span>
+      <span>Duress PIN looks valid but fires a silent SOS. Attacker sees "Access granted".</span>
+    </div>
+    <div class="row2">
+      <div class="field"><label>Real PIN</label><input type="password" id="sos-real-pin" placeholder="Your actual PIN"></div>
+      <div class="field"><label>Duress PIN <span class="card-badge badge-warn" style="vertical-align:middle;margin-left:4px">trap</span></label><input type="password" id="sos-duress-pin" placeholder="PIN under coercion"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">Dead Man's Switch</div></div>
+    <div class="field">
+      <label>Check-in required every <span id="dms-lbl" style="color:var(--green)">24 hours</span></label>
+      <input type="range" id="dms-h" min="1" max="168" value="24" oninput="document.getElementById('dms-lbl').textContent=this.value+' hours'">
+    </div>
+    <div class="row3" style="margin-top:14px">
+      <div class="field"><label>Level 1 (h)</label><input type="number" id="esc1" value="1" min="1"></div>
+      <div class="field"><label>Level 2 (h)</label><input type="number" id="esc2" value="6" min="1"></div>
+      <div class="field"><label>Level 3 (h)</label><input type="number" id="esc3" value="24" min="1"></div>
+    </div>
+    <p class="hint" style="margin-top:8px">If no check-in within these hours, escalating alerts fire automatically.</p>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">Alert contacts</div></div>
+    <div id="contacts"></div>
+    <button class="btn btn-outline btn-sm" onclick="addContact()" style="margin-top:8px">+ Add contact</button>
+  </div>
+  <button class="btn btn-green btn-full" onclick="saveSOS()">Save SOS config</button>
+  <div class="card" id="sos-config-result" style="display:none">
+    <div class="terminal" id="sos-config-out"></div>
+  </div>
+</div>
+
+<!-- SOS TRIGGER -->
+<div id="panel-sos-trigger" class="panel">
+  <div class="card">
+    <div class="card-header"><div class="card-title">Profile</div></div>
+    <div class="row2">
+      <div class="field"><label>Profile ID</label><input type="text" id="t-pid" placeholder="myprofile"></div>
+      <div class="field"><label>Passphrase</label><input type="password" id="t-pass"></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">PIN check</div>
+      <span class="card-badge badge-warn">duress detection</span>
+    </div>
+    <p style="font-size:13px;color:var(--gray);margin-bottom:14px;line-height:1.6">Enter a PIN. Duress PIN fires SOS silently and still returns "valid".</p>
+    <div class="row2">
+      <div class="field"><label>PIN</label><input type="password" id="t-pin" placeholder="Enter PIN"></div>
+      <div class="field" style="justify-content:flex-end"><button class="btn btn-outline" onclick="checkPIN()">Verify PIN</button></div>
+    </div>
+    <div id="pin-result"></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">Dead Man's Switch</div></div>
+    <div class="dms-status" id="dms-status">Load profile to see status.</div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-green" onclick="checkIn()">&#10003; Check in</button>
+      <button class="btn btn-outline btn-sm" onclick="loadDMS()">&#8635; Refresh</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">Manual SOS</div></div>
+    <div class="row2" style="margin-bottom:14px">
+      <div class="field"><label>GPS latitude (optional)</label><input type="number" id="t-lat" step="0.0001" placeholder="50.4501"></div>
+      <div class="field"><label>GPS longitude</label><input type="number" id="t-lon" step="0.0001" placeholder="30.5234"></div>
+    </div>
+    <div class="field" style="margin-bottom:18px">
+      <label>Alert level</label>
+      <select id="t-level">
+        <option value="1">Level 1 &mdash; Warning</option>
+        <option value="2" selected>Level 2 &mdash; Emergency</option>
+        <option value="3">Level 3 &mdash; Critical / life threat</option>
+      </select>
+    </div>
+    <button class="sos-trigger-btn" onclick="triggerSOS()">&#128682; Send SOS Alert</button>
+    <div id="sos-result" style="margin-top:12px"></div>
+    <button class="btn btn-outline btn-sm" onclick="getGPS()" style="margin-top:12px">&#128205; Use my GPS location</button>
+  </div>
+</div>
+
+</main>
+
+<script>
+const R = { pid:'', thresh:0, collected:[], cpass:'' };
+let ccount = 0;
+
+function show(name, btn) {
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+async function ping() {
+  try {
+    const d = await (await fetch('/api/status')).json();
+    document.getElementById('status-dot').style.background = 'var(--green)';
+    document.getElementById('status-text').textContent = 'API Online';
+    document.getElementById('bundle-count').textContent = d.bundles + ' bundles';
+  } catch {
+    document.getElementById('status-dot').style.background = 'var(--red)';
+    document.getElementById('status-text').textContent = 'Offline';
+  }
+}
+ping(); setInterval(ping, 30000);
+
+function toggleSecret() {
+  const t = document.getElementById('secret-type').value;
+  document.getElementById('f-passphrase').style.display = t==='passphrase' ? '' : 'none';
+  document.getElementById('f-hex').style.display = t==='hex' ? '' : 'none';
+}
+
+function syncLocations() {
+  const n = parseInt(document.getElementById('n-shards').value)||4;
+  const cont = document.getElementById('locs');
+  const cur = cont.querySelectorAll('.loc-card').length;
+  if(cur < n) for(let i=cur;i<n;i++) addLoc();
+  else { const cards=cont.querySelectorAll('.loc-card'); for(let i=cur-1;i>=n;i--) cards[i].remove(); }
+  updateCanarySelect(); updateHint();
+}
+
+function addLoc() {
+  const cont = document.getElementById('locs');
+  const num = cont.querySelectorAll('.loc-card').length + 1;
+  const d = document.createElement('div');
+  d.className = 'loc-card';
+  d.innerHTML = `<div class="loc-label">Point #${num} <span class="loc-canary-tag"></span></div>
+    <button class="loc-remove" onclick="this.closest('.loc-card').remove();renumber();updateCanarySelect();updateHint()">x</button>
+    <div class="row2">
+      <div class="field"><label>Latitude</label><input type="number" step="0.0001" placeholder="50.4501" class="l-lat"></div>
+      <div class="field"><label>Longitude</label><input type="number" step="0.0001" placeholder="30.5234" class="l-lon"></div>
+    </div>`;
+  cont.appendChild(d);
+  updateCanarySelect(); updateHint();
+}
+
+function renumber() {
+  document.querySelectorAll('.loc-card').forEach((c,i)=>{
+    c.querySelector('.loc-label').childNodes[0].textContent = 'Point #'+(i+1)+' ';
+  });
+  markCanary();
+}
+
+function markCanary() {
+  const idx = parseInt(document.getElementById('canary-idx')?.value)||0;
+  document.querySelectorAll('.loc-card').forEach((c,i)=>{
+    c.classList.toggle('is-canary', i+1===idx);
+    c.querySelector('.loc-canary-tag').textContent = (i+1===idx) ? 'CANARY' : '';
+  });
+}
+
+function updateCanarySelect() {
+  const sel = document.getElementById('canary-idx');
+  if(!sel) return;
+  const n = document.querySelectorAll('.loc-card').length;
+  const prev = sel.value;
+  sel.innerHTML = '';
+  for(let i=1;i<=n;i++){
+    const o=document.createElement('option'); o.value=i; o.textContent='Shard #'+i;
+    if(i==n) o.selected=true; sel.appendChild(o);
+  }
+  if(prev) sel.value=prev;
+  sel.onchange = markCanary; markCanary();
+}
+
+function updateHint() {
+  const n = document.querySelectorAll('.loc-card').length;
+  const k = parseInt(document.getElementById('k-thresh').value)||3;
+  const box = document.getElementById('thresh-hint');
+  if(n>=2&&k>=2&&k<n){ box.className='threshold-info ok'; box.textContent='Need '+k+' of '+n+' locations. Can lose '+(n-k)+' location(s) and still recover.'; }
+  else { box.className='threshold-info bad'; box.textContent='Threshold must be 2 <= K < N. Adjust values.'; }
+}
+
+function toggleCanary() {
+  document.getElementById('canary-fields').style.display = document.getElementById('canary-on').value==='yes' ? '' : 'none';
+}
+
+async function doSetup() {
+  const type = document.getElementById('secret-type').value;
+  const body = {};
+  if(type==='passphrase'){
+    const p=document.getElementById('s-pass').value.trim();
+    if(!p) return alert('Enter a passphrase'); body.passphrase=p;
+  } else {
+    const h=document.getElementById('s-hex').value.trim();
+    if(!h) return alert('Enter hex secret'); body.secret_hex=h;
+  }
+  const locCards=document.querySelectorAll('.loc-card'); const locs=[];
+  for(const c of locCards){
+    const lat=parseFloat(c.querySelector('.l-lat').value);
+    const lon=parseFloat(c.querySelector('.l-lon').value);
+    if(isNaN(lat)||isNaN(lon)) return alert('Fill all location coordinates');
+    locs.push([lat,lon]);
+  }
+  if(locs.length<2) return alert('Add at least 2 locations');
+  body.locations=locs; body.threshold=parseInt(document.getElementById('k-thresh').value);
+  if(document.getElementById('canary-on').value==='yes'){
+    const cp=document.getElementById('canary-pass').value.trim();
+    if(!cp) return alert('Enter canary passphrase');
+    body.canary={shard_index:parseInt(document.getElementById('canary-idx').value),passphrase:cp,
+      telegram_token:document.getElementById('c-tg-token').value.trim(),
+      telegram_chat_id:document.getElementById('c-tg-chat').value.trim()};
+  }
+  const btn=document.getElementById('setup-btn');
+  btn.innerHTML='<span class="spin"></span> Generating...'; btn.disabled=true;
+  try {
+    const d=await(await fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+    document.getElementById('setup-result').style.display='';
+    const out=document.getElementById('setup-out');
+    if(!d.ok){out.innerHTML='<span class="t-err">Error: '+d.error+'</span>';return;}
+    out.innerHTML='<span class="t-ok">Setup complete</span>\n\n<span class="t-dim">Public ID   </span><span class="t-val">'+d.public_id+'</span>\n<span class="t-dim">Shards (N)  </span>'+d.total_shards+'\n<span class="t-dim">Threshold   </span>'+d.threshold+' of '+d.total_shards+'\n<span class="t-dim">Canary      </span><span class="'+(d.canary_configured?'t-warn':'t-dim')+'">'+(d.canary_configured?'Configured':'Disabled')+'</span>\n\n<span class="t-warn">Save your Public ID. Locations are not stored anywhere.</span>';
+  } finally { btn.innerHTML='Generate shards'; btn.disabled=false; }
+}
+
+async function loadBundle() {
+  const pid=document.getElementById('r-pid').value.trim();
+  if(!pid) return alert('Enter Public ID');
+  const d=await(await fetch('/api/bundle/'+pid)).json();
+  if(!d.ok) return alert(d.error);
+  R.pid=pid; R.thresh=d.threshold; R.collected=[]; R.cpass=document.getElementById('r-cpass').value;
+  document.getElementById('prog-total').textContent=d.threshold;
+  document.getElementById('prog-done').textContent='0';
+  document.getElementById('prog-fill').style.width='0%';
+  document.getElementById('prog-msg').textContent='visit locations';
+  const grid=document.getElementById('shards-grid'); grid.innerHTML='';
+  for(const s of d.shards){
+    const c=document.createElement('div'); c.className='shard-chip'; c.id='chip-'+s.index;
+    c.onclick=()=>selectShard(s.index);
+    c.innerHTML='<div class="chip-num">#'+s.index+'</div><div class="chip-lbl">LOCKED</div>';
+    grid.appendChild(c);
+  }
+  document.getElementById('recover-body').style.display='';
+  document.getElementById('secret-card').style.display='none';
+  document.getElementById('reconstruct-btn').style.display='none';
+  document.getElementById('shard-input-card').style.display='';
+  selectShard(d.shards[0].index);
+}
+
+function selectShard(idx) {
+  if(R.collected.find(s=>s.index===idx)) return;
+  document.querySelectorAll('.shard-chip').forEach(c=>c.classList.remove('active'));
+  document.getElementById('chip-'+idx)?.classList.add('active');
+  document.getElementById('active-shard').textContent='#'+idx;
+  document.getElementById('r-lat').value=''; document.getElementById('r-lon').value='';
+  document.getElementById('shard-input-card').dataset.idx=idx;
+}
+
+async function submitShard() {
+  const idx=parseInt(document.getElementById('shard-input-card').dataset.idx);
+  const lat=parseFloat(document.getElementById('r-lat').value);
+  const lon=parseFloat(document.getElementById('r-lon').value);
+  if(isNaN(lat)||isNaN(lon)) return alert('Enter coordinates');
+  const btn=document.getElementById('decrypt-btn');
+  btn.innerHTML='<span class="spin"></span> Decrypting...'; btn.disabled=true;
+  try {
+    const d=await(await fetch('/api/recover/shard',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({public_id:R.pid,shard_index:idx,lat,lon,canary_passphrase:R.cpass})})).json();
+    if(!d.ok){alert('Decryption failed.\n\nCoordinates are too far from setup location (>200m).');return;}
+    R.collected.push({index:d.shard_index,shard_hex:d.shard_hex});
+    const chip=document.getElementById('chip-'+idx);
+    chip.classList.remove('active'); chip.classList.add('done');
+    chip.querySelector('.chip-lbl').textContent=d.canary_triggered?'CANARY':'OK';
+    chip.onclick=null;
+    const done=R.collected.length;
+    document.getElementById('prog-done').textContent=done;
+    document.getElementById('prog-fill').style.width=(done/R.thresh*100)+'%';
+    if(done>=R.thresh){
+      document.getElementById('prog-msg').textContent='ready';
+      document.getElementById('reconstruct-btn').style.display='';
+      document.getElementById('shard-input-card').style.display='none';
+    } else {
+      const next=document.querySelector('.shard-chip:not(.done):not(.active)');
+      if(next) selectShard(parseInt(next.id.replace('chip-','')));
+    }
+  } finally { btn.innerHTML='Decrypt shard'; btn.disabled=false; }
+}
+
+async function reconstruct() {
+  const d=await(await fetch('/api/recover/reconstruct',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({shares:R.collected})})).json();
+  if(!d.ok){alert(d.error);return;}
+  document.getElementById('secret-card').style.display='';
+  document.getElementById('secret-out').textContent=d.secret_hex+'\n\n'+d.bits+' bits';
+  document.getElementById('reconstruct-btn').style.display='none';
+}
+
+function addContact() {
+  ccount++;
+  const c=ccount;
+  const div=document.createElement('div');
+  div.id='c-'+c;
+  div.style.cssText='background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:16px;margin-bottom:10px;position:relative';
+  div.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--blue);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:12px">Contact #'+c+'<button onclick="document.getElementById(\'c-'+c+'\').remove()" style="float:right;background:none;border:none;color:var(--dim);cursor:pointer;font-size:16px">x</button></div><div class="field"><label>Name</label><input type="text" id="c'+c+'-name" placeholder="Alice"></div><div class="row2" style="margin-top:10px"><div class="field"><label>Telegram token</label><input type="text" id="c'+c+'-token" placeholder="Bot token"></div><div class="field"><label>Telegram chat ID</label><input type="text" id="c'+c+'-chat" placeholder="-100..."></div></div><div class="field" style="margin-top:10px"><label>Webhook URL</label><input type="text" id="c'+c+'-hook" placeholder="https://..."></div>';
+  document.getElementById('contacts').appendChild(div);
+}
+
+async function saveSOS() {
+  const pid=document.getElementById('sos-pid').value.trim();
+  const pass=document.getElementById('sos-pass').value.trim();
+  if(!pid||!pass) return alert('Profile ID and passphrase required');
+  const contacts=[];
+  document.querySelectorAll('[id^="c-"]').forEach(el=>{
+    const c=el.id.replace('c-',''); if(isNaN(c)) return;
+    contacts.push({name:document.getElementById('c'+c+'-name')?.value||'',telegram_token:document.getElementById('c'+c+'-token')?.value||'',telegram_chat_id:document.getElementById('c'+c+'-chat')?.value||'',webhook_url:document.getElementById('c'+c+'-hook')?.value||''});
+  });
+  const body={profile_id:pid,owner_name:document.getElementById('sos-owner').value.trim(),passphrase:pass,real_pin:document.getElementById('sos-real-pin').value,duress_pin:document.getElementById('sos-duress-pin').value,deadman_interval_hours:parseInt(document.getElementById('dms-h').value),escalation_levels:[parseInt(document.getElementById('esc1').value),parseInt(document.getElementById('esc2').value),parseInt(document.getElementById('esc3').value)],emergency_message:document.getElementById('sos-msg').value.trim(),lac_wallet:document.getElementById('sos-lac-addr').value.trim(),contacts};
+  const d=await(await fetch('/api/sos/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+  document.getElementById('sos-config-result').style.display='';
+  document.getElementById('sos-config-out').innerHTML=d.ok?'<span class="t-ok">Saved — profile: '+d.profile_id+'</span>\n<span class="t-dim">Contacts: </span>'+contacts.length+'\n<span class="t-warn">Remember your Profile ID and passphrase.</span>':'<span class="t-err">Error: '+d.error+'</span>';
+}
+
+async function checkPIN() {
+  const pid=document.getElementById('t-pid').value.trim(),pass=document.getElementById('t-pass').value.trim(),pin=document.getElementById('t-pin').value;
+  if(!pid||!pass||!pin) return alert('Fill all fields');
+  const d=await(await fetch('/api/sos/pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile_id:pid,passphrase:pass,pin})})).json();
+  document.getElementById('pin-result').innerHTML=d.ok?(d.valid?'<p class="pin-ok">Valid PIN — access granted</p>':'<p class="pin-bad">Invalid PIN</p>'):'<p class="pin-bad">Error: '+d.error+'</p>';
+}
+
+async function checkIn() {
+  const pid=document.getElementById('t-pid').value.trim();
+  if(!pid) return alert('Enter Profile ID');
+  const d=await(await fetch('/api/sos/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile_id:pid})})).json();
+  if(d.ok) document.getElementById('dms-status').innerHTML='<span class="t-ok">Checked in — '+new Date(d.last_checkin).toLocaleString()+'</span>';
+  loadDMS();
+}
+
+async function loadDMS() {
+  const pid=document.getElementById('t-pid').value.trim(); if(!pid) return;
+  const d=await(await fetch('/api/sos/status/'+pid)).json();
+  const box=document.getElementById('dms-status');
+  box.innerHTML=d.ok?'<span class="t-dim">Last check-in  </span><span class="t-ok">'+(d.last_checkin?new Date(d.last_checkin).toLocaleString():'Never')+'</span>\n<span class="t-dim">Hours since    </span><span class="'+((d.hours_since_checkin||0)>12?'t-warn':'t-ok')+'">'+(d.hours_since_checkin??'---')+'h</span>\n<span class="t-dim">Missed alerts  </span><span class="'+(d.missed_count>0?'t-err':'t-ok')+'">'+d.missed_count+'</span>':'Profile not found.';
+}
+
+async function triggerSOS() {
+  const pid=document.getElementById('t-pid').value.trim(),pass=document.getElementById('t-pass').value.trim();
+  if(!pid||!pass) return alert('Enter Profile ID and passphrase');
+  const lat=parseFloat(document.getElementById('t-lat').value),lon=parseFloat(document.getElementById('t-lon').value);
+  const d=await(await fetch('/api/sos/trigger',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile_id:pid,passphrase:pass,trigger:'manual_web',level:parseInt(document.getElementById('t-level').value),gps:(!isNaN(lat)&&!isNaN(lon))?{lat,lon}:null})})).json();
+  document.getElementById('sos-result').innerHTML=d.ok?'<div class="notice notice-green" style="margin-top:10px"><span class="notice-icon">OK</span>SOS sent — Level '+d.level+'</div>':'<div class="notice notice-red" style="margin-top:10px"><span class="notice-icon">!</span>'+d.error+'</div>';
+}
+
+function getGPS() {
+  navigator.geolocation?.getCurrentPosition(p=>{document.getElementById('t-lat').value=p.coords.latitude.toFixed(6);document.getElementById('t-lon').value=p.coords.longitude.toFixed(6);},()=>alert('GPS not available'));
+}
+
+syncLocations();
+addContact();
+</script>
+</body>
+</html>
