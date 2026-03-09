@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0e14">
+<link rel="manifest" href="/manifest.json">
+<title>Nagini</title>
+<style>
+:root {
+  --bg:      #0a0e14;
+  --card:    #111822;
+  --card2:   #1a2332;
+  --border:  #253040;
+  --green:   #3dff9a;
+  --gdim:    #1a7a4a;
+  --red:     #ff4466;
+  --yellow:  #ffd040;
+  --white:   #f0f4f8;
+  --gray:    #8899aa;
+  --dim:     #445566;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; background: var(--bg); color: var(--white); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 16px; overflow: hidden; }
+
+/* ── Shell ── */
+.shell { display: flex; flex-direction: column; height: 100dvh; }
+
+/* ── Header ── */
+.topbar {
+  background: var(--card); border-bottom: 1px solid var(--border);
+  padding: 12px 16px; padding-top: max(12px, env(safe-area-inset-top));
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
+.topbar-title { font-size: 17px; font-weight: 700; color: var(--green); letter-spacing: 1px; }
+.topbar-status { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--gray); }
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--dim); }
+.dot.online { background: var(--green); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── Bottom nav ── */
+.bottomnav {
+  background: var(--card); border-top: 1px solid var(--border);
+  display: flex;
+  padding-bottom: env(safe-area-inset-bottom);
+  flex-shrink: 0;
+}
+.nav-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  padding: 10px 4px; background: none; border: none;
+  color: var(--dim); font-size: 10px; font-weight: 600;
+  letter-spacing: .3px; cursor: pointer; transition: color .15s;
+  gap: 4px;
+}
+.nav-item .icon { font-size: 20px; }
+.nav-item.active { color: var(--green); }
+.nav-item:active { opacity: .6; }
+
+/* ── Scroll area ── */
+.screen-wrap { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.screen { display: none; padding: 16px; padding-bottom: 24px; }
+.screen.active { display: block; animation: fadeUp .2s ease; }
+@keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+/* ── Cards ── */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+.card-title { font-size: 11px; font-weight: 700; color: var(--gray); letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 14px; }
+
+/* ── Form ── */
+.field { margin-bottom: 12px; }
+label { display: block; font-size: 12px; font-weight: 600; color: var(--gray); margin-bottom: 5px; letter-spacing: .5px; text-transform: uppercase; }
+input, select, textarea {
+  width: 100%; background: var(--bg); border: 1.5px solid var(--border);
+  border-radius: 8px; color: var(--white); font-size: 15px; padding: 12px 14px;
+  outline: none; font-family: inherit;
+  -webkit-appearance: none; appearance: none;
+}
+input:focus, select:focus { border-color: var(--green); }
+input::placeholder { color: var(--dim); }
+select { cursor: pointer; }
+textarea { resize: none; min-height: 80px; }
+
+/* GPS field */
+.gps-row { display: flex; gap: 8px; align-items: flex-end; }
+.gps-row input { flex: 1; }
+.gps-btn {
+  background: var(--gdim); border: none; border-radius: 8px;
+  color: var(--green); font-size: 22px; width: 48px; height: 48px;
+  cursor: pointer; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  transition: background .15s;
+}
+.gps-btn:active { background: #256e50; }
+
+/* ── Buttons ── */
+.btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 15px; border-radius: 10px;
+  font-size: 15px; font-weight: 700; letter-spacing: .5px;
+  border: none; cursor: pointer; transition: all .15s;
+}
+.btn:active { transform: scale(.97); }
+.btn-green { background: var(--green); color: #000; }
+.btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--white); }
+.btn-outline:active { border-color: var(--green); }
+.btn-red { background: rgba(255,68,102,.15); border: 1.5px solid rgba(255,68,102,.4); color: var(--red); }
+.btn-sm { padding: 10px 16px; width: auto; font-size: 13px; border-radius: 8px; }
+.btn + .btn { margin-top: 10px; }
+
+/* ── Location item ── */
+.loc-item {
+  background: var(--card2); border: 1.5px solid var(--border);
+  border-radius: 10px; padding: 14px; margin-bottom: 10px;
+}
+.loc-item.canary { border-color: rgba(255,208,64,.35); }
+.loc-num { font-size: 11px; font-weight: 700; color: var(--green); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+.loc-num .canary-tag { color: var(--yellow); font-size: 10px; }
+.loc-del { background: none; border: none; color: var(--dim); font-size: 20px; cursor: pointer; padding: 0 4px; }
+
+/* ── Shard chips ── */
+.chips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 12px 0; }
+.chip {
+  aspect-ratio: 1; background: var(--card2); border: 1.5px solid var(--border);
+  border-radius: 10px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  cursor: pointer; transition: all .15s; font-size: 11px;
+}
+.chip:active:not(.done) { transform: scale(.93); }
+.chip.active { border-color: #40b4ff; background: rgba(64,180,255,.08); }
+.chip.done { border-color: var(--green); background: rgba(61,255,154,.07); }
+.chip-n { font-size: 20px; font-weight: 800; color: var(--white); }
+.chip-l { font-size: 9px; color: var(--gray); margin-top: 2px; letter-spacing: .5px; }
+.chip.active .chip-n { color: #40b4ff; }
+.chip.done .chip-n, .chip.done .chip-l { color: var(--green); }
+
+/* ── Progress ── */
+.prog-wrap { margin-bottom: 14px; }
+.prog-bar { height: 5px; background: var(--card2); border-radius: 5px; overflow: hidden; }
+.prog-fill { height: 100%; background: linear-gradient(90deg, var(--gdim), var(--green)); border-radius: 5px; transition: width .4s ease; }
+.prog-label { display: flex; justify-content: space-between; font-size: 12px; color: var(--gray); margin-top: 5px; }
+
+/* ── Notice ── */
+.notice { border-radius: 10px; padding: 12px 14px; font-size: 13px; line-height: 1.6; margin-bottom: 12px; display: flex; gap: 10px; }
+.notice-y { background: rgba(255,208,64,.08); border: 1px solid rgba(255,208,64,.2); color: #ffe080; }
+.notice-g { background: rgba(61,255,154,.08); border: 1px solid rgba(61,255,154,.2); color: #80ffcc; }
+.notice-r { background: rgba(255,68,102,.08); border: 1px solid rgba(255,68,102,.2); color: #ff8899; }
+
+/* ── Secret box ── */
+.secret-box { background: #020a06; border: 1.5px solid var(--green); border-radius: 10px; padding: 16px; font-family: 'Courier New', monospace; font-size: 12px; color: var(--green); line-height: 1.8; word-break: break-all; }
+
+/* ── GPS status ── */
+.gps-status { font-size: 12px; color: var(--gray); margin-top: 4px; min-height: 18px; }
+.gps-status.ok { color: var(--green); }
+.gps-status.err { color: var(--red); }
+
+/* ── Big SOS ── */
+.sos-big {
+  width: 100%; padding: 22px;
+  background: rgba(255,68,102,.08); border: 2px solid var(--red);
+  border-radius: 12px; color: var(--red);
+  font-size: 18px; font-weight: 800; letter-spacing: 2px;
+  cursor: pointer; margin-bottom: 12px;
+}
+.sos-big:active { background: rgba(255,68,102,.2); transform: scale(.97); }
+
+/* ── Spinner ── */
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.2); border-top-color: var(--green); border-radius: 50%; animation: sp .7s linear infinite; }
+@keyframes sp { to{transform:rotate(360deg)} }
+
+/* ── Install banner ── */
+#install-banner { display: none; background: var(--gdim); padding: 12px 16px; text-align: center; font-size: 13px; color: var(--green); font-weight: 600; cursor: pointer; }
+
+/* ── DMS status ── */
+.dms-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.dms-row:last-child { border: none; }
+.dms-label { color: var(--gray); font-size: 12px; }
+.dms-val { font-weight: 600; }
+.ok { color: var(--green); }
+.warn { color: var(--yellow); }
+.err { color: var(--red); }
+</style>
+</head>
+<body>
+
+<div id="install-banner" onclick="installPWA()">📲 Tap to install Nagini on home screen</div>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="topbar-title">🐍 NAGINI</div>
+    <div class="topbar-status">
+      <div class="dot" id="dot"></div>
+      <span id="api-status">connecting...</span>
+    </div>
+  </div>
+
+  <div class="screen-wrap">
+
+    <!-- ══ SETUP ══ -->
+    <div id="s-setup" class="screen active">
+
+      <div class="card">
+        <div class="card-title">Secret</div>
+        <div class="field">
+          <label>Passphrase</label>
+          <input type="password" id="m-pass" placeholder="Your secret passphrase">
+        </div>
+        <div class="field">
+          <label>Threshold</label>
+          <select id="m-k">
+            <option value="2">2 of N</option>
+            <option value="3" selected>3 of N</option>
+            <option value="4">4 of N</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Locations</div>
+        <div id="m-locs"></div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn btn-outline btn-sm" onclick="mAddLoc()">+ Add point</button>
+          <button class="btn btn-outline btn-sm" id="gps-all-btn" onclick="captureAllGPS()" style="color:var(--green);border-color:var(--gdim)">📍 Capture here</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Canary shard <span style="color:var(--yellow);font-size:10px;font-weight:700">optional</span></div>
+        <div class="field">
+          <label>Enable</label>
+          <select id="m-canary-on" onchange="toggleMCanary()">
+            <option value="no">Disabled</option>
+            <option value="yes">Enabled</option>
+          </select>
+        </div>
+        <div id="m-canary-cfg" style="display:none">
+          <div class="field">
+            <label>Canary shard</label>
+            <select id="m-canary-idx"></select>
+          </div>
+          <div class="field">
+            <label>Canary passphrase</label>
+            <input type="password" id="m-canary-pass" placeholder="Separate passphrase">
+          </div>
+        </div>
+      </div>
+
+      <button class="btn btn-green" id="m-setup-btn" onclick="mSetup()">Generate shards</button>
+
+      <div id="m-setup-result" style="display:none;margin-top:14px">
+        <div class="notice notice-g" id="m-setup-msg"></div>
+        <div class="card" id="m-setup-pid-card" style="display:none">
+          <div class="card-title">Public ID — save this!</div>
+          <div style="font-family:'Courier New',monospace;font-size:12px;color:var(--green);word-break:break-all;line-height:1.7" id="m-pid-display"></div>
+          <button class="btn btn-outline" style="margin-top:12px" onclick="copyPID()">📋 Copy ID</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ RECOVER ══ -->
+    <div id="s-recover" class="screen">
+
+      <div id="r-load-card" class="card">
+        <div class="card-title">Bundle</div>
+        <div class="field">
+          <label>Public ID</label>
+          <input type="text" id="r-pid" placeholder="Paste your public ID">
+        </div>
+        <div class="field">
+          <label>Canary passphrase</label>
+          <input type="password" id="r-cpass" placeholder="Leave empty if no canary">
+        </div>
+        <button class="btn btn-green" style="margin-top:4px" onclick="mLoadBundle()">Load bundle</button>
+      </div>
+
+      <div id="r-body" style="display:none">
+
+        <div class="card">
+          <div class="prog-wrap">
+            <div class="prog-bar"><div class="prog-fill" id="r-prog" style="width:0%"></div></div>
+            <div class="prog-label">
+              <span>Shards: <span id="r-done" style="color:var(--green)">0</span> / <span id="r-total">?</span></span>
+              <span id="r-msg" style="color:var(--gray)">visit locations</span>
+            </div>
+          </div>
+          <div class="chips" id="r-chips"></div>
+        </div>
+
+        <div class="card" id="r-shard-card">
+          <div class="card-title">Shard <span id="r-active-num">#?</span> — enter GPS</div>
+          <div class="gps-row" style="margin-bottom:8px">
+            <div style="flex:1">
+              <label>Latitude</label>
+              <input type="number" id="r-lat" step="0.00001" placeholder="50.4501">
+            </div>
+            <button class="gps-btn" onclick="getGPSFor('r-lat','r-lon','r-gps-status')" title="Use my location">📍</button>
+          </div>
+          <div class="field">
+            <label>Longitude</label>
+            <input type="number" id="r-lon" step="0.00001" placeholder="30.5234">
+          </div>
+          <div class="gps-status" id="r-gps-status"></div>
+          <button class="btn btn-green" id="r-decrypt-btn" onclick="mDecryptShard()" style="margin-top:12px">Decrypt shard</button>
+        </div>
+
+        <button class="btn btn-green" id="r-reconstruct-btn" style="display:none;margin-bottom:14px" onclick="mReconstruct()">
+          ✓ Reconstruct secret →
+        </button>
+
+        <div id="r-secret-card" style="display:none">
+          <div class="notice notice-y"><span>⚠</span><span>Copy now — not stored anywhere.</span></div>
+          <div class="secret-box" id="r-secret-out"></div>
+          <button class="btn btn-outline" style="margin-top:10px" onclick="copySecret()">📋 Copy secret</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ══ SOS ══ -->
+    <div id="s-sos" class="screen">
+
+      <div class="card">
+        <div class="card-title">Profile</div>
+        <div class="field"><label>Profile ID</label><input type="text" id="sos-pid" placeholder="myprofile"></div>
+        <div class="field"><label>Passphrase</label><input type="password" id="sos-pass" placeholder="Config passphrase"></div>
+      </div>
+
+      <!-- DMS -->
+      <div class="card">
+        <div class="card-title">Dead Man's Switch</div>
+        <div id="dms-status-box" style="margin-bottom:14px">
+          <div class="dms-row"><span class="dms-label">Last check-in</span><span class="dms-val" id="dms-last">—</span></div>
+          <div class="dms-row"><span class="dms-label">Hours since</span><span class="dms-val" id="dms-hours">—</span></div>
+          <div class="dms-row"><span class="dms-label">Missed alerts</span><span class="dms-val" id="dms-missed">—</span></div>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-green" onclick="mCheckIn()" style="flex:1">✓ Check in now</button>
+          <button class="btn btn-outline btn-sm" onclick="mLoadDMS()">↻</button>
+        </div>
+      </div>
+
+      <!-- PIN -->
+      <div class="card">
+        <div class="card-title">PIN verify</div>
+        <div class="field"><label>PIN</label><input type="password" id="sos-pin" placeholder="Enter PIN" inputmode="numeric"></div>
+        <button class="btn btn-outline" onclick="mCheckPIN()">Verify PIN</button>
+        <div id="pin-res" style="margin-top:10px;font-size:13px"></div>
+      </div>
+
+      <!-- Manual SOS -->
+      <div class="card">
+        <div class="card-title">Manual SOS</div>
+        <div class="field">
+          <label>Alert level</label>
+          <select id="sos-level">
+            <option value="1">Level 1 — Warning</option>
+            <option value="2" selected>Level 2 — Emergency</option>
+            <option value="3">Level 3 — Critical</option>
+          </select>
+        </div>
+        <div class="gps-row" style="margin-bottom:8px">
+          <div style="flex:1"><label>GPS (optional)</label><input type="number" id="sos-lat" step="0.00001" placeholder="latitude"></div>
+          <button class="gps-btn" onclick="getGPSFor('sos-lat','sos-lon','sos-gps-st')">📍</button>
+        </div>
+        <input type="number" id="sos-lon" step="0.00001" placeholder="longitude" style="margin-bottom:8px">
+        <div class="gps-status" id="sos-gps-st"></div>
+        <button class="sos-big" onclick="mTriggerSOS()">🆘 SEND SOS</button>
+        <div id="sos-res"></div>
+      </div>
+    </div>
+
+    <!-- ══ SETTINGS ══ -->
+    <div id="s-settings" class="screen">
+      <div class="card">
+        <div class="card-title">Server</div>
+        <div class="field">
+          <label>API URL</label>
+          <input type="text" id="api-url" placeholder="https://xxxx.ngrok.io">
+          <div style="font-size:11px;color:var(--gray);margin-top:4px">Leave empty to use same origin (local WiFi)</div>
+        </div>
+        <button class="btn btn-outline" onclick="saveSettings()">Save & test connection</button>
+        <div id="settings-res" style="margin-top:10px;font-size:13px"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">GPS test</div>
+        <div class="field">
+          <label>Your current coordinates</label>
+          <div class="gps-row">
+            <input type="text" id="test-gps-out" readonly placeholder="tap 📍 to test">
+            <button class="gps-btn" onclick="testGPS()">📍</button>
+          </div>
+          <div class="gps-status" id="test-gps-status"></div>
+        </div>
+        <div id="gps-accuracy-box" style="display:none;margin-top:8px">
+          <div class="dms-row"><span class="dms-label">Accuracy</span><span class="dms-val ok" id="gps-acc">—</span></div>
+          <div class="dms-row"><span class="dms-label">Latitude</span><span class="dms-val" id="gps-lat-val">—</span></div>
+          <div class="dms-row"><span class="dms-label">Longitude</span><span class="dms-val" id="gps-lon-val">—</span></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">About</div>
+        <div class="dms-row"><span class="dms-label">Version</span><span class="dms-val">1.0.0</span></div>
+        <div class="dms-row"><span class="dms-label">Protocol</span><span class="dms-val ok">Nagini Protocol</span></div>
+        <div class="dms-row"><span class="dms-label">Crypto</span><span class="dms-val" style="font-size:11px">AES-256-GCM + HKDF + Shamir GF(2⁸)</span></div>
+        <div class="dms-row"><span class="dms-label">GitHub</span><span class="dms-val" style="font-size:11px;color:var(--green)">epidemiaya/nagini-protocol</span></div>
+      </div>
+    </div>
+
+  </div><!-- /screen-wrap -->
+
+  <div class="bottomnav">
+    <button class="nav-item active" onclick="nav('setup',this)" id="nav-setup">
+      <span class="icon">⬡</span>Setup
+    </button>
+    <button class="nav-item" onclick="nav('recover',this)" id="nav-recover">
+      <span class="icon">⬢</span>Recover
+    </button>
+    <button class="nav-item" onclick="nav('sos',this)" id="nav-sos">
+      <span class="icon">⚠</span>SOS
+    </button>
+    <button class="nav-item" onclick="nav('settings',this)" id="nav-settings">
+      <span class="icon">⚙</span>Settings
+    </button>
+  </div>
+</div>
+
+<script>
+let BASE = '';
+let mLocCount = 0;
+let R = {pid:'', thresh:0, collected:[], cpass:''};
+let deferredInstall = null;
+let lastPID = '';
+
+// ── PWA Install ──
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstall = e;
+  document.getElementById('install-banner').style.display = 'block';
+});
+function installPWA() {
+  if(deferredInstall) { deferredInstall.prompt(); deferredInstall = null; document.getElementById('install-banner').style.display='none'; }
+}
+
+// ── Settings ──
+function saveSettings() {
+  BASE = document.getElementById('api-url').value.trim().replace(/\/$/, '');
+  localStorage.setItem('nagini-base', BASE);
+  ping().then(() => document.getElementById('settings-res').innerHTML = '<span class="ok">✓ Connected</span>')
+        .catch(() => document.getElementById('settings-res').innerHTML = '<span class="err">✗ Cannot reach server</span>');
+}
+function loadSettings() {
+  const saved = localStorage.getItem('nagini-base');
+  if(saved) { BASE = saved; document.getElementById('api-url').value = saved; }
+}
+
+// ── Nav ──
+function nav(name, btn) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('s-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ── API ping ──
+async function ping() {
+  const d = await (await fetch(BASE+'/api/status')).json();
+  document.getElementById('dot').classList.add('online');
+  document.getElementById('api-status').textContent = 'online';
+  return d;
+}
+async function safePing() {
+  try { await ping(); } catch { document.getElementById('dot').classList.remove('online'); document.getElementById('api-status').textContent = 'offline'; }
+}
+safePing(); setInterval(safePing, 20000);
+
+// ── GPS ──
+function getGPS() {
+  return new Promise((res, rej) => {
+    if(!navigator.geolocation) return rej(new Error('GPS not available'));
+    navigator.geolocation.getCurrentPosition(
+      p => res(p.coords),
+      e => rej(new Error(e.message)),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+}
+
+async function getGPSFor(latId, lonId, statusId) {
+  const el = document.getElementById(statusId);
+  if(el) { el.className='gps-status'; el.textContent='Getting GPS...'; }
+  try {
+    const c = await getGPS();
+    document.getElementById(latId).value = c.latitude.toFixed(7);
+    document.getElementById(lonId).value = c.longitude.toFixed(7);
+    if(el) { el.className='gps-status ok'; el.textContent = `±${Math.round(c.accuracy)}m accuracy`; }
+  } catch(e) {
+    if(el) { el.className='gps-status err'; el.textContent = e.message; }
+  }
+}
+
+async function testGPS() {
+  const st = document.getElementById('test-gps-status');
+  const box = document.getElementById('gps-accuracy-box');
+  st.className='gps-status'; st.textContent='Getting GPS...';
+  try {
+    const c = await getGPS();
+    document.getElementById('test-gps-out').value = `${c.latitude.toFixed(7)}, ${c.longitude.toFixed(7)}`;
+    document.getElementById('gps-lat-val').textContent = c.latitude.toFixed(7);
+    document.getElementById('gps-lon-val').textContent = c.longitude.toFixed(7);
+    document.getElementById('gps-acc').textContent = `±${Math.round(c.accuracy)} metres`;
+    document.getElementById('gps-acc').className = 'dms-val ' + (c.accuracy < 50 ? 'ok' : c.accuracy < 150 ? 'warn' : 'err');
+    box.style.display = '';
+    st.className='gps-status ok'; st.textContent='GPS captured';
+  } catch(e) {
+    st.className='gps-status err'; st.textContent = e.message;
+  }
+}
+
+// ── Setup: locations ──
+function mAddLoc(lat, lon) {
+  mLocCount++;
+  const n = mLocCount;
+  const c = document.getElementById('m-locs').querySelectorAll('.loc-item').length + 1;
+  const div = document.createElement('div');
+  div.className = 'loc-item'; div.id = 'mloc-'+n;
+  div.innerHTML = `
+    <div class="loc-num">Point #${c} <span class="canary-tag" id="mloc-ct-${n}"></span>
+      <button class="loc-del" onclick="document.getElementById('mloc-${n}').remove();mRenumber()">×</button>
+    </div>
+    <div class="gps-row">
+      <div style="flex:1"><label>Lat</label><input type="number" step="0.00001" id="mlat-${n}" value="${lat||''}" placeholder="50.4501"></div>
+      <button class="gps-btn" onclick="getGPSFor('mlat-${n}','mlon-${n}','mgps-${n}')">📍</button>
+    </div>
+    <div class="field" style="margin-top:8px"><label>Lon</label><input type="number" step="0.00001" id="mlon-${n}" value="${lon||''}" placeholder="30.5234"></div>
+    <div class="gps-status" id="mgps-${n}"></div>`;
+  document.getElementById('m-locs').appendChild(div);
+  mRenumber(); mUpdateCanarySelect();
+}
+
+function mRenumber() {
+  const items = document.querySelectorAll('.loc-item');
+  items.forEach((el,i) => {
+    el.querySelector('.loc-num').childNodes[0].textContent = `Point #${i+1} `;
+  });
+  mMarkCanary();
+}
+
+function mMarkCanary() {
+  const idx = parseInt(document.getElementById('m-canary-idx')?.value)||0;
+  document.querySelectorAll('.loc-item').forEach((el,i) => {
+    el.classList.toggle('canary', i+1===idx);
+    const tag = el.querySelector('.canary-tag');
+    if(tag) tag.textContent = (i+1===idx) ? 'CANARY' : '';
+  });
+}
+
+function mUpdateCanarySelect() {
+  const sel = document.getElementById('m-canary-idx');
+  if(!sel) return;
+  const n = document.querySelectorAll('.loc-item').length;
+  const prev = sel.value;
+  sel.innerHTML = '';
+  for(let i=1;i<=n;i++) {
+    const o=document.createElement('option'); o.value=i; o.textContent='Shard #'+i;
+    if(i==n) o.selected=true; sel.appendChild(o);
+  }
+  if(prev) sel.value=prev;
+  sel.onchange = mMarkCanary; mMarkCanary();
+}
+
+function toggleMCanary() {
+  document.getElementById('m-canary-cfg').style.display = document.getElementById('m-canary-on').value==='yes' ? '' : 'none';
+}
+
+async function captureAllGPS() {
+  const btn = document.getElementById('gps-all-btn');
+  btn.textContent = '⏳ Getting GPS...'; btn.disabled = true;
+  try {
+    const c = await getGPS();
+    mAddLoc(c.latitude.toFixed(7), c.longitude.toFixed(7));
+  } catch(e) { alert('GPS: '+e.message); }
+  finally { btn.textContent = '📍 Capture here'; btn.disabled = false; }
+}
+
+// ── SETUP ──
+async function mSetup() {
+  const pass = document.getElementById('m-pass').value.trim();
+  if(!pass) return alert('Enter passphrase');
+  const locs = [];
+  for(const inp of document.querySelectorAll('[id^="mlat-"]')) {
+    const n = inp.id.replace('mlat-','');
+    const lat = parseFloat(inp.value), lon = parseFloat(document.getElementById('mlon-'+n).value);
+    if(isNaN(lat)||isNaN(lon)) return alert('Fill all location coordinates');
+    locs.push([lat,lon]);
+  }
+  if(locs.length < 2) return alert('Add at least 2 locations');
+  const k = parseInt(document.getElementById('m-k').value);
+  const body = { passphrase: pass, locations: locs, threshold: k };
+  if(document.getElementById('m-canary-on').value==='yes') {
+    const cp = document.getElementById('m-canary-pass').value.trim();
+    if(!cp) return alert('Enter canary passphrase');
+    body.canary = { shard_index: parseInt(document.getElementById('m-canary-idx').value), passphrase: cp };
+  }
+  const btn = document.getElementById('m-setup-btn');
+  btn.innerHTML = '<span class="spin"></span> Generating...'; btn.disabled = true;
+  try {
+    const d = await (await fetch(BASE+'/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})).json();
+    document.getElementById('m-setup-result').style.display = '';
+    if(!d.ok) { document.getElementById('m-setup-msg').innerHTML='<span>✗ '+d.error+'</span>'; return; }
+    lastPID = d.public_id;
+    document.getElementById('m-setup-msg').innerHTML = '✓ Done — '+d.threshold+' of '+d.total_shards+' shards';
+    document.getElementById('m-setup-pid-card').style.display = '';
+    document.getElementById('m-pid-display').textContent = d.public_id;
+    document.getElementById('r-pid').value = d.public_id;
+  } finally { btn.innerHTML = 'Generate shards'; btn.disabled = false; }
+}
+
+function copyPID() {
+  navigator.clipboard?.writeText(lastPID).then(()=>alert('Copied!'));
+}
+function copySecret() {
+  const t = document.getElementById('r-secret-out').textContent;
+  navigator.clipboard?.writeText(t).then(()=>alert('Copied!'));
+}
+
+// ── RECOVER ──
+async function mLoadBundle() {
+  const pid = document.getElementById('r-pid').value.trim();
+  if(!pid) return alert('Enter Public ID');
+  const d = await (await fetch(BASE+'/api/bundle/'+pid)).json();
+  if(!d.ok) return alert(d.error);
+  R.pid=pid; R.thresh=d.threshold; R.collected=[]; R.cpass=document.getElementById('r-cpass').value;
+  document.getElementById('r-total').textContent=d.threshold;
+  document.getElementById('r-done').textContent='0';
+  document.getElementById('r-prog').style.width='0%';
+  document.getElementById('r-msg').textContent='visit locations';
+  const chips = document.getElementById('r-chips'); chips.innerHTML='';
+  for(const s of d.shards){
+    const c=document.createElement('div'); c.className='chip'; c.id='chip-'+s.index;
+    c.onclick=()=>rSelectShard(s.index);
+    c.innerHTML='<div class="chip-n">#'+s.index+'</div><div class="chip-l">LOCKED</div>';
+    chips.appendChild(c);
+  }
+  document.getElementById('r-body').style.display='';
+  document.getElementById('r-secret-card').style.display='none';
+  document.getElementById('r-reconstruct-btn').style.display='none';
+  document.getElementById('r-shard-card').style.display='';
+  rSelectShard(d.shards[0].index);
+  // Auto scroll to body
+  document.getElementById('r-body').scrollIntoView({behavior:'smooth'});
+}
+
+function rSelectShard(idx) {
+  if(R.collected.find(s=>s.index===idx)) return;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  document.getElementById('chip-'+idx)?.classList.add('active');
+  document.getElementById('r-active-num').textContent='#'+idx;
+  document.getElementById('r-lat').value=''; document.getElementById('r-lon').value='';
+  document.getElementById('r-gps-status').textContent='';
+  document.getElementById('r-shard-card').dataset.idx=idx;
+}
+
+async function mDecryptShard() {
+  const idx = parseInt(document.getElementById('r-shard-card').dataset.idx);
+  const lat = parseFloat(document.getElementById('r-lat').value);
+  const lon = parseFloat(document.getElementById('r-lon').value);
+  if(isNaN(lat)||isNaN(lon)) return alert('Enter or capture GPS coordinates');
+  const btn = document.getElementById('r-decrypt-btn');
+  btn.innerHTML='<span class="spin"></span> Decrypting...'; btn.disabled=true;
+  try {
+    const d = await (await fetch(BASE+'/api/recover/shard',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({public_id:R.pid,shard_index:idx,lat,lon,canary_passphrase:R.cpass})})).json();
+    if(!d.ok){ alert('✗ Decryption failed\n\nCoordinates are >200m from setup location.'); return; }
+    R.collected.push({index:d.shard_index, shard_hex:d.shard_hex});
+    const chip = document.getElementById('chip-'+idx);
+    chip.classList.remove('active'); chip.classList.add('done');
+    chip.querySelector('.chip-l').textContent = d.canary_triggered ? 'CANARY' : 'OK';
+    chip.onclick = null;
+    const done = R.collected.length;
+    document.getElementById('r-done').textContent = done;
+    document.getElementById('r-prog').style.width = (done/R.thresh*100)+'%';
+    if(done >= R.thresh) {
+      document.getElementById('r-msg').textContent = 'ready!';
+      document.getElementById('r-reconstruct-btn').style.display = '';
+      document.getElementById('r-shard-card').style.display = 'none';
+    } else {
+      const next = document.querySelector('.chip:not(.done)');
+      if(next) rSelectShard(parseInt(next.id.replace('chip-','')));
+    }
+  } finally { btn.innerHTML='Decrypt shard'; btn.disabled=false; }
+}
+
+async function mReconstruct() {
+  const d = await (await fetch(BASE+'/api/recover/reconstruct',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({shares:R.collected})})).json();
+  if(!d.ok){alert(d.error);return;}
+  document.getElementById('r-secret-card').style.display='';
+  document.getElementById('r-secret-out').textContent = d.secret_hex+'\n\n'+d.bits+' bits';
+  document.getElementById('r-reconstruct-btn').style.display='none';
+}
+
+// ── SOS ──
+async function mCheckIn() {
+  const pid = document.getElementById('sos-pid').value.trim();
+  if(!pid) return alert('Enter Profile ID');
+  const d = await (await fetch(BASE+'/api/sos/checkin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile_id:pid})})).json();
+  if(d.ok) { document.getElementById('dms-last').textContent = new Date(d.last_checkin).toLocaleString(); document.getElementById('dms-last').className='dms-val ok'; }
+  mLoadDMS();
+}
+
+async function mLoadDMS() {
+  const pid = document.getElementById('sos-pid').value.trim();
+  if(!pid) return;
+  const d = await (await fetch(BASE+'/api/sos/status/'+pid)).json();
+  if(!d.ok) return;
+  document.getElementById('dms-last').textContent = d.last_checkin ? new Date(d.last_checkin).toLocaleString() : 'Never';
+  const h = d.hours_since_checkin;
+  document.getElementById('dms-hours').textContent = h ? h+'h ago' : '—';
+  document.getElementById('dms-hours').className = 'dms-val '+(h>12?'warn':'ok');
+  document.getElementById('dms-missed').textContent = d.missed_count;
+  document.getElementById('dms-missed').className = 'dms-val '+(d.missed_count>0?'err':'ok');
+}
+
+async function mCheckPIN() {
+  const pid=document.getElementById('sos-pid').value.trim(), pass=document.getElementById('sos-pass').value.trim(), pin=document.getElementById('sos-pin').value;
+  if(!pid||!pass||!pin) return alert('Fill profile ID, passphrase and PIN');
+  const d=await(await fetch(BASE+'/api/sos/pin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile_id:pid,passphrase:pass,pin})})).json();
+  const box = document.getElementById('pin-res');
+  box.innerHTML = d.ok ? (d.valid ? '<span class="ok">✓ Valid PIN</span>' : '<span class="err">✗ Invalid PIN</span>') : '<span class="err">✗ '+d.error+'</span>';
+}
+
+async function mTriggerSOS() {
+  const pid=document.getElementById('sos-pid').value.trim(), pass=document.getElementById('sos-pass').value.trim();
+  if(!pid||!pass) return alert('Enter Profile ID and passphrase');
+  const lat=parseFloat(document.getElementById('sos-lat').value), lon=parseFloat(document.getElementById('sos-lon').value);
+  const d=await(await fetch(BASE+'/api/sos/trigger',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile_id:pid,passphrase:pass,trigger:'mobile_sos',level:parseInt(document.getElementById('sos-level').value),gps:(!isNaN(lat)&&!isNaN(lon))?{lat,lon}:null})})).json();
+  document.getElementById('sos-res').innerHTML = d.ok
+    ? '<div class="notice notice-g" style="margin-top:8px"><span>✓</span><span>SOS sent — Level '+d.level+'</span></div>'
+    : '<div class="notice notice-r" style="margin-top:8px"><span>✗</span><span>'+d.error+'</span></div>';
+}
+
+// ── Init ──
+loadSettings();
+// Start with 3 empty locations
+mAddLoc(); mAddLoc(); mAddLoc();
+</script>
+</body>
+</html>
