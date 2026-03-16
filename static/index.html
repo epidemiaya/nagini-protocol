@@ -214,7 +214,15 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 18px 0; 
       </div>
       <div class="row2" style="margin-top:14px">
         <div class="field"><label>Telegram bot token</label><input type="text" id="c-tg-token" placeholder="123456:AAF..."></div>
-        <div class="field"><label>Telegram chat ID</label><input type="text" id="c-tg-chat" placeholder="-100123456"></div>
+        <div class="field">
+          <label>Telegram chat ID</label>
+          <input type="text" id="c-tg-chat" placeholder="-100123456" style="margin-bottom:8px">
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="findChatID('c-tg-token','c-tg-chat','c-tg-res')">🔍 Find Chat ID</button>
+            <button class="btn btn-outline btn-sm" onclick="testTelegram('c-tg-token','c-tg-chat')">✉ Test</button>
+          </div>
+          <div id="c-tg-res" style="display:none;margin-top:8px;font-size:12px"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -627,6 +635,44 @@ async function triggerSOS() {
   const lat=parseFloat(document.getElementById('t-lat').value),lon=parseFloat(document.getElementById('t-lon').value);
   const d=await(await fetch('/api/sos/trigger',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({profile_id:pid,passphrase:pass,trigger:'manual_web',level:parseInt(document.getElementById('t-level').value),gps:(!isNaN(lat)&&!isNaN(lon))?{lat,lon}:null})})).json();
   document.getElementById('sos-result').innerHTML=d.ok?'<div class="notice notice-green" style="margin-top:10px"><span class="notice-icon">OK</span>SOS sent — Level '+d.level+'</div>':'<div class="notice notice-red" style="margin-top:10px"><span class="notice-icon">!</span>'+d.error+'</div>';
+}
+
+async function findChatID(tokenId, chatId, resultId) {
+  const token = document.getElementById(tokenId).value.trim();
+  if (!token) return alert('Enter bot token first');
+  const btn = event.target;
+  const orig = btn.textContent;
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    const d = await (await fetch('/api/telegram/find_chat_id', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({token})
+    })).json();
+    if (!d.ok) { alert('Error: ' + d.error); return; }
+    const box = document.getElementById(resultId);
+    box.style.display = '';
+    if (d.chats.length === 1) {
+      document.getElementById(chatId).value = d.chats[0].id;
+      box.innerHTML = '<span style="color:var(--green);font-size:12px">Found: ' + d.chats[0].name + '</span>';
+    } else {
+      box.innerHTML = '<select style="width:100%;margin-top:4px" onchange="document.getElementById(\'' + chatId + '\').value=this.value">'
+        + d.chats.map(c => '<option value="' + c.id + '">' + c.name + ' — ' + c.type + ' (' + c.id + ')</option>').join('')
+        + '</select>';
+      document.getElementById(chatId).value = d.chats[0].id;
+    }
+  } catch(e) { alert(e.message); }
+  finally { btn.textContent = orig; btn.disabled = false; }
+}
+
+async function testTelegram(tokenId, chatId) {
+  const token = document.getElementById(tokenId).value.trim();
+  const chat  = document.getElementById(chatId).value.trim();
+  if (!token || !chat) return alert('Enter token and chat ID first');
+  const d = await (await fetch('/api/telegram/test', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({token, chat_id: chat})
+  })).json();
+  alert(d.ok ? 'Sent!' : 'Error: ' + d.error);
 }
 
 function getGPS() {

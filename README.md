@@ -32,8 +32,10 @@ Recovery → visit K locations → decrypt shards → reconstruct secret
 - 🪤 Canary shard with Telegram / webhook alerts
 - 🆘 SOS Protocol: Dead Man's Switch, Duress PIN, emergency broadcast
 - 🌐 REST API (Flask) — integrates with any service
+- 📱 Mobile PWA — field-ready, installable, GPS capture
 - 💻 Web UI — dark, runs locally at `localhost:5000`
 - 🖥️ CLI interface
+- 🔗 **Native LAC integration** — embedded in [LightAnonChain](https://github.com/epidemiaya/LightAnonChain-)
 
 ---
 
@@ -45,27 +47,18 @@ Recovery → visit K locations → decrypt shards → reconstruct secret
 git clone https://github.com/epidemiaya/nagini-protocol.git
 cd nagini-protocol
 pip install flask cryptography
-```
-
-### Web UI + API
-
-```bash
 python app.py
 ```
 
-Open **http://localhost:5000**
+- Desktop UI: **http://localhost:5000**
+- Mobile PWA: **http://localhost:5000/mobile**
 
 ### CLI
 
 ```bash
-# Create a new bundle
-python nagini.py setup
-
-# Recover a secret
-python nagini.py recover --id <public_id>
-
-# List stored bundles
-python nagini.py list
+python nagini.py setup                    # create bundle
+python nagini.py recover --id <id>        # recover secret
+python nagini.py list                     # list bundles
 ```
 
 ---
@@ -73,18 +66,21 @@ python nagini.py list
 ## REST API
 
 ```
-GET  /api/status                   — health check
-POST /api/setup                    — create bundle
-POST /api/recover/shard            — decrypt one shard
-POST /api/recover/reconstruct      — reconstruct secret from shards
-GET  /api/bundles                  — list bundles
-GET  /api/bundle/<id>              — bundle info
+GET  /api/status                     — health check
+POST /api/setup                      — create bundle
+POST /api/recover/shard              — decrypt one shard
+POST /api/recover/reconstruct        — reconstruct secret
+GET  /api/bundles                    — list bundles
+GET  /api/bundle/<id>                — bundle info
 
-POST /api/sos/config               — create SOS profile
-POST /api/sos/checkin              — Dead Man's Switch check-in
-POST /api/sos/trigger              — manual SOS alert
-POST /api/sos/pin                  — verify PIN (duress detection)
-GET  /api/sos/status/<profile_id>  — DMS status
+POST /api/sos/config                 — create SOS profile
+POST /api/sos/checkin                — Dead Man's Switch check-in
+POST /api/sos/trigger                — manual SOS alert
+POST /api/sos/pin                    — verify PIN (duress detection)
+GET  /api/sos/status/<profile_id>    — DMS status
+
+POST /api/telegram/find_chat_id      — find Telegram chat_id by bot token
+POST /api/telegram/test              — send test Telegram message
 ```
 
 ### Example: create bundle
@@ -99,14 +95,6 @@ curl -X POST http://localhost:5000/api/setup \
   }'
 ```
 
-### Example: SOS check-in
-
-```bash
-curl -X POST http://localhost:5000/api/sos/checkin \
-  -H "Content-Type: application/json" \
-  -d '{"profile_id": "myprofile"}'
-```
-
 ---
 
 ## SOS Protocol
@@ -119,7 +107,29 @@ Three duress mechanisms, all firing silently:
 
 **Dead Man's Switch** — if owner doesn't check in within N hours → escalating alerts fire automatically (Level 1 → 2 → 3)
 
-Alert channels: **Telegram bot**, **HTTP webhook**, **local log**
+Alert channels: **LAC messenger**, **Telegram bot**, **HTTP webhook**, **local log**
+
+---
+
+## Telegram — Find Chat ID
+
+No need to look up chat IDs manually:
+
+1. Create a bot via [@BotFather](https://t.me/BotFather), copy the token
+2. Send `/start` to your bot
+3. In the web UI → **SOS Config → Contact → 🔍 Find Chat ID**
+4. Chat ID fills automatically. Hit **✉ Test** to verify.
+
+---
+
+## LAC Integration
+
+Nagini is natively integrated into [LightAnonChain](https://github.com/epidemiaya/LightAnonChain-) — a privacy-first blockchain messenger.
+
+- No separate server needed — runs embedded in `lac_node.py`
+- Auth via `X-Seed` header (same as all LAC API calls)
+- Canary and DMS alerts arrive as system messages in your LAC wallet
+- Bundles stored per LAC address on the node
 
 ---
 
@@ -128,32 +138,39 @@ Alert channels: **Telegram bot**, **HTTP webhook**, **local log**
 ```
 nagini-protocol/
   nagini_core.py      — GF(2⁸) SSS + AES-256-GCM + Fuzzy Extractor
-  nagini_canary.py    — canary shard logic + alert firing
+  nagini_canary.py    — canary shard + silent alert
   nagini_sos.py       — SOS protocol (DMS, Duress PIN, broadcast)
   nagini_storage.py   — local JSON blob storage
   nagini.py           — CLI
   app.py              — Flask REST API
   static/
-    index.html        — web UI
+    index.html        — desktop web UI
+    mobile.html       — mobile PWA (field testing)
   test_nagini.py      — 30 unit tests
+  WHITEPAPER.pdf      — cryptographic specification
 ```
 
 ---
 
 ## Security notes
 
-- All blobs stored in `~/.nagini/blobs/` — contain **zero** geographic data
-- SOS configs stored in `~/.nagini/sos/` — AES-256-GCM encrypted with PBKDF2 (260k iterations)
-- Canary configs stored in `~/.nagini/canary/` — separate passphrase, separate encryption
-- This project has **not been formally audited**. Contributions and reviews welcome.
+- Blobs in `~/.nagini/blobs/` — contain **zero** geographic data
+- SOS configs in `~/.nagini/sos/` — AES-256-GCM + PBKDF2 (260k iterations)
+- Canary configs in `~/.nagini/canary/` — separate passphrase, separate encryption
+- Not formally audited. Contributions and reviews welcome.
 
 ---
 
 ## Roadmap
 
-- [ ] Find Chat ID helper (Telegram)
-- [ ] LAC messenger integration (LightAnonChain)
-- [ ] Mobile-optimized UI
+- [x] Core protocol — Shamir SSS + AES-256-GCM + Fuzzy Extractor
+- [x] Canary shard + silent alerts
+- [x] SOS Protocol — Dead Man's Switch, Duress PIN
+- [x] REST API (Flask)
+- [x] Web UI (desktop)
+- [x] Mobile PWA — GPS capture, field-ready
+- [x] Telegram Find Chat ID helper
+- [x] **LAC messenger integration** — [LightAnonChain](https://github.com/epidemiaya/LightAnonChain-)
 - [ ] Formal security audit
 - [ ] Multi-device sync
 

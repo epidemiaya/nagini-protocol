@@ -81,6 +81,24 @@ def index():
     return send_from_directory(str(static_dir), "index.html")
 
 
+@app.route("/mobile")
+def mobile():
+    static_dir = Path(__file__).parent / "static"
+    return send_from_directory(str(static_dir), "mobile.html")
+
+
+@app.route("/manifest.json")
+def manifest():
+    static_dir = Path(__file__).parent / "static"
+    return send_from_directory(str(static_dir), "manifest.json")
+
+
+@app.route("/icon.png")
+def icon_route():
+    static_dir = Path(__file__).parent / "static"
+    return send_from_directory(str(static_dir), "icon.png")
+
+
 # ─────────────────────────────────────────────────────────
 # Status
 # ─────────────────────────────────────────────────────────
@@ -458,6 +476,92 @@ def api_sos_pin():
 
     return ok(valid=False, message="Invalid PIN")
 
+
+
+# ─────────────────────────────────────────────────────────
+# Telegram helpers
+# ─────────────────────────────────────────────────────────
+
+@app.route("/api/telegram/find_chat_id", methods=["POST"])
+@require_json
+def api_telegram_find_chat_id():
+    """
+    POST /api/telegram/find_chat_id
+    { "token": "123456:AAF..." }
+    Calls getUpdates to find chat_id of last user who messaged the bot.
+    User must have sent /start first.
+    """
+    token = request.json.get("token", "").strip()
+    if not token:
+        return err("token required")
+
+    import urllib.request as _ur, urllib.error as _ue
+
+    try:
+        url = f"https://api.telegram.org/bot{token}/getUpdates?limit=20&offset=-20"
+        with _ur.urlopen(_ur.Request(url), timeout=8) as resp:
+            data = json.loads(resp.read())
+    except _ue.HTTPError as e:
+        try: msg = json.loads(e.read()).get("description", "Telegram API error")
+        except: msg = "Telegram API error"
+        return err(f"Telegram: {msg}")
+    except Exception as e:
+        return err(f"Request failed: {e}")
+
+    if not data.get("ok"):
+        return err(data.get("description", "Telegram error"))
+
+    seen = {}
+    for update in data.get("result", []):
+        for key in ("message", "channel_post", "edited_message"):
+            item = update.get(key)
+            if not item: continue
+            chat = item.get("chat")
+            if not chat: continue
+            cid = chat.get("id")
+            if cid and cid not in seen:
+                name = (chat.get("title") or chat.get("username")
+                        or f"{chat.get('first_name','')}".strip() or str(cid))
+                seen[cid] = {"id": cid, "name": name,
+                             "type": chat.get("type","unknown"),
+                             "username": chat.get("username","")}
+
+    if not seen:
+        return err("No chats found. Send /start to your bot first, then try again.", 404)
+
+    return ok(chats=sorted(seen.values(), key=lambda c: str(c["id"])), count=len(seen))
+
+
+@app.route("/api/telegram/test", methods=["POST"])
+@require_json
+def api_telegram_test():
+    """
+    POST /api/telegram/test
+    { "token": "...", "chat_id": "..." }
+    Sends a test message to verify token+chat_id works.
+    """
+    token   = request.json.get("token", "").strip()
+    chat_id = request.json.get("chat_id", "").strip()
+    if not token or not chat_id:
+        return err("token and chat_id required")
+
+    import urllib.request as _ur, urllib.error as _ue
+
+    payload = json.dumps({"chat_id": chat_id,
+        "text": "*Nagini Protocol* — Telegram alert channel verified.",
+        "parse_mode": "Markdown"}).encode()
+    try:
+        req = _ur.Request(f"https://api.telegram.org/bot{token}/sendMessage",
+                          data=payload, headers={"Content-Type": "application/json"})
+        with _ur.urlopen(req, timeout=8) as resp:
+            d = json.loads(resp.read())
+        return ok(message="Test message sent") if d.get("ok") else err(d.get("description","error"))
+    except _ue.HTTPError as e:
+        try: msg = json.loads(e.read()).get("description","error")
+        except: msg = "Telegram API error"
+        return err(msg)
+    except Exception as e:
+        return err(str(e))
 
 # ─────────────────────────────────────────────────────────
 # Run

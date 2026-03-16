@@ -401,6 +401,26 @@ textarea { resize: none; min-height: 80px; }
       </div>
 
       <div class="card">
+        <div class="card-title">Telegram — Find Chat ID</div>
+        <p style="font-size:13px;color:var(--gray);margin-bottom:14px;line-height:1.6">
+          Send <b style="color:var(--white)">/start</b> to your bot, then paste the token and tap Find.
+        </p>
+        <div class="field">
+          <label>Bot token</label>
+          <input type="text" id="tg-find-token" placeholder="123456:AAF...">
+        </div>
+        <div class="field" style="margin-top:10px">
+          <label>Chat ID</label>
+          <input type="text" id="tg-find-chat" placeholder="will be filled automatically">
+        </div>
+        <div id="tg-find-result" style="display:none;margin:8px 0;font-family:monospace;font-size:13px"></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-green" style="flex:1" onclick="findChatID('tg-find-token','tg-find-chat','tg-find-result')">🔍 Find Chat ID</button>
+          <button class="btn btn-outline" style="flex:1" onclick="testTelegram('tg-find-token','tg-find-chat')">✉ Test</button>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-title">About</div>
         <div class="dms-row"><span class="dms-label">Version</span><span class="dms-val">1.0.0</span></div>
         <div class="dms-row"><span class="dms-label">Protocol</span><span class="dms-val ok">Nagini Protocol</span></div>
@@ -442,6 +462,52 @@ window.addEventListener('beforeinstallprompt', e => {
 });
 function installPWA() {
   if(deferredInstall) { deferredInstall.prompt(); deferredInstall = null; document.getElementById('install-banner').style.display='none'; }
+}
+
+// ── Telegram helpers ──
+async function findChatID(tokenId, chatId, resultId) {
+  const token = document.getElementById(tokenId).value.trim();
+  if (!token) return alert('Enter bot token first');
+  const btn = event.target;
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    const d = await (await fetch(BASE+'/api/telegram/find_chat_id', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({token})
+    })).json();
+    if (!d.ok) { alert(d.error); return; }
+    const box = document.getElementById(resultId);
+    box.style.display = '';
+    if (d.chats.length === 1) {
+      document.getElementById(chatId).value = String(d.chats[0].id);
+      box.innerHTML = '<span class="ok">Found: ' + d.chats[0].name + '</span>';
+    } else {
+      const sel = document.createElement('select');
+      sel.style.cssText = 'width:100%;margin-top:6px;background:var(--bg);border:1.5px solid var(--border);border-radius:8px;color:var(--white);font-size:14px;padding:10px 14px';
+      d.chats.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id;
+        o.textContent = c.name + ' (' + c.type + ')';
+        sel.appendChild(o);
+      });
+      sel.onchange = () => { document.getElementById(chatId).value = sel.value; };
+      document.getElementById(chatId).value = String(d.chats[0].id);
+      box.innerHTML = '';
+      box.appendChild(sel);
+    }
+  } catch(e) { alert(e.message); }
+  finally { btn.textContent = '🔍 Find'; btn.disabled = false; }
+}
+
+async function testTelegram(tokenId, chatId) {
+  const token = document.getElementById(tokenId).value.trim();
+  const chat  = document.getElementById(chatId).value.trim();
+  if (!token || !chat) return alert('Enter token and chat ID first');
+  const d = await (await fetch(BASE+'/api/telegram/test', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({token, chat_id: chat})
+  })).json();
+  alert(d.ok ? '✅ Test message sent!' : '❌ ' + d.error);
 }
 
 // ── Settings ──
